@@ -1,6 +1,13 @@
 import { AudioSource, AvatarAnchorPointType, AvatarAttach, Entity, Transform, engine } from "@dcl/sdk/ecs";
 import { Quaternion, Vector3 } from "@dcl/sdk/math";
 
+export enum AUDIO_SOUNDS {
+    GAME_START = 0,
+    GAME_END = 1,
+    STAGE_CHANGED = 2,
+    KEY_PICKUP = 3,
+    KEY_SLOTTED = 4
+}
 /*      AUDIO MANAGER
     controls audio components in-scene, mainly lobby (game idle) and
     battle (during wave) music.
@@ -24,7 +31,11 @@ export class AudioManager
     }
 
     private static audioStrings:string[] = [
-        "audio/sfx_stage_change.wav"
+        "audio/sfx_game_start.wav",
+        "audio/sfx_game_end.wav",
+        "audio/sfx_stage_change.wav",
+        "audio/sfx_key_clicked.wav",
+        "audio/sfx_key_slotted.wav"
     ];
 
     parentEntity:Entity;
@@ -81,11 +92,15 @@ export class AudioManager
                 audioClipUrl: AudioManager.audioStrings[i],
                 loop: false,
                 playing: false,
-                volume: 5
+                volume: 3
             });
             //add to collection
             this.soundEffects.push(soundEntity);
         }
+        //additional tuning
+        //  volume change
+        AudioSource.getMutable(this.soundEffects[AUDIO_SOUNDS.STAGE_CHANGED]).volume = 10;
+        //  tone change
     }
 
     PlaySound(index:number)

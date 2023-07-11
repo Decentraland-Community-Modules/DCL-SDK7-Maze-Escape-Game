@@ -16,7 +16,7 @@ export class MazePortalLock
 
     //constructor
     //  sets up tile object/count text for use
-    constructor(index:number)
+    constructor(index:number, par:Entity)
     {
         this.Index = index;
 
@@ -24,18 +24,19 @@ export class MazePortalLock
         this.entityRot = engine.addEntity();
         Transform.create(this.entityRot,
         ({
+            parent: par,
             position: Vector3.create(0, 0, 0),
-            scale: Vector3.create(1, 1, 1),
-            rotation: Quaternion.fromEulerDegrees(0, 30+(60*this.Index), 0)
+            scale: Vector3.create(0.5, 0.5, 0.5),
+            rotation: Quaternion.fromEulerDegrees(0, (60*this.Index), 0)
         }));
         //create tile entity
         this.entityPos = engine.addEntity();
         Transform.create(this.entityPos,
         ({
             parent: this.entityRot,
-            position: Vector3.create(0, 1.14, 2.25),
-            scale: Vector3.create(0.3, 0.3, 0.15),
-            rotation: Quaternion.fromEulerDegrees(-60, 0, 0)
+            position: Vector3.create(0, 0.9, 2.01),
+            scale: Vector3.create(0.3, 0.3, 0.05),
+            rotation: Quaternion.fromEulerDegrees(0, 0, 0)
         }));
         /*GltfContainer.create(this.entity, {
             src: "models/maze-game/maze-lock.glb",

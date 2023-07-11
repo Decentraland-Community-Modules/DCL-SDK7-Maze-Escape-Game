@@ -6,7 +6,9 @@ import { MazePortalKey } from "./maze-portal-key";
 import { movePlayerTo } from "~system/RestrictedActions";
 import { MazeTile } from "./maze-tile";
 import { MazePortal } from "./maze-portal";
-import { AudioManager } from "../utilities/audio-manager";
+import { AUDIO_SOUNDS, AudioManager } from "../utilities/audio-manager";
+import { ITEM_COLOURS } from "./config/maze-game-config";
+import { MazeGameMenu } from "./maze-menu";
 
 /*      TIMER DISPLAY SYSTEM
     used to alternate between maze map states
@@ -14,14 +16,14 @@ import { AudioManager } from "../utilities/audio-manager";
     Author: TheCryptoTrader69 (Alex Pazder)
     Contact: thecryptotrader69@gmail.com
 */
-const DelayAmount:number = 5;
+const DelayAmount:number = 25;
 //custom component def, might add score timer if enough time
 const MazeTimerData = { curDelta:Schemas.Number }
 //create component def
 const MazeTimerComponent = engine.defineComponent("MazeTimerComponent", MazeTimerData);
 
 /**     MAZE GAME MANAGER
-    handles the maze game, generating a maze and placing keys around it.
+    handles the maze game states and displays, generating a maze and placing keys around it.
     the player must collect all keys to escape the maze.
  
   
@@ -59,8 +61,6 @@ export class MazeGameManager
     private mazeAlternatives:number = 3;
     /** currently displayed maze alternative */
     private mazeAlternative:number = 0;
-    /** time (in seconds) between maze swap */
-    private mazeSwapTime:number = 60;
     /** maze data for swaps */
     private mazeMaps:boolean[][][] = [];
 
@@ -73,23 +73,12 @@ export class MazeGameManager
     /** collection of all maze objects */
     public MazeTileObjects:MazeTile[][];
 
-    /** material colours */
-    private colors:Color4[] = [
-        Color4.Red(),
-        Color4.Blue(),
-        Color4.Green(),
-        Color4.Purple(),
-        Color4.Magenta(),
-        Color4.Yellow()
-    ]
-
     /** portal object */
     public PortalObject:MazePortal;
     /** portal lock interactable objects */
     public PortalLocks:MazePortalLock[];
     /** portal lock key objects */
     public PortalKeys:MazePortalKey[];
-
 
     /** returns the position of a tile based on the given coord */
     public CalculatePosition(x:number, y:number)
@@ -150,11 +139,11 @@ export class MazeGameManager
         this.PortalLocks = [];
         for (let i = 0; i < 6; i++) {
             //create lock
-            this.PortalLocks.push(new MazePortalLock(i));
+            this.PortalLocks.push(new MazePortalLock(i, this.PortalObject.entity));
             this.PortalLocks[i].Interact = this.CallbackInteractLock;
             //apply material
             Material.setPbrMaterial(this.PortalLocks[i].entityPos, {
-                albedoColor: this.colors[i],
+                albedoColor: ITEM_COLOURS[i],
                 metallic: 0.8,
                 roughness: 0.1
             });
@@ -166,12 +155,6 @@ export class MazeGameManager
             //create key    
             this.PortalKeys.push(new MazePortalKey(i));
             this.PortalKeys[i].Interact = this.CallbackInteractKey;
-            //apply material
-            Material.setPbrMaterial(this.PortalKeys[i].entity, {
-                albedoColor: this.colors[i],
-                metallic: 0.8,
-                roughness: 0.1
-            });
         }
         
         //create timer system
@@ -180,12 +163,12 @@ export class MazeGameManager
         MazeTimerComponent.create(this.timingEntity, { curDelta: 0 });
         //  add timer system
         engine.addSystem(this.timerProcessing);
-
+        
         if(MazeGameManager.IsDebugging) console.log("Maze Game Manager: initialized, map size x="+this.mazeWidth+" y="+this.mazeHeight);
     }
 
 
-    //create component processing
+    //component for time processing/maze swaps
     private timingEntity:Entity;
     timerProcessing = function MazeTimerSystem(dt: number)
     {
@@ -203,15 +186,15 @@ export class MazeGameManager
         }
     }
 
-    /** sets the default state of the game */
+    /** sets the entry state of the game, ready to play */
     public Initialize()
     {
         if(MazeGameManager.IsDebugging) console.log("Maze Game Manager: game scene resetting...");
         //update game state, prepared
         this.gameState = 0;
 
-        //update portal
-        this.PortalObject.SetState(0);
+        //hide menu obj
+        MazeGameMenu.Instance.SetEntityState(true);
 
         //reset tiles
         for (let x = 0; x < this.mazeWidth; x++) {
@@ -220,21 +203,36 @@ export class MazeGameManager
             }
         }
 
+        //update portal
+        this.PortalObject.SetState(0);
+
+        //reset locks
+        for (let i = 0; i < 6; i++) {
+            //material to matte
+            Material.setPbrMaterial(this.PortalLocks[i].entityPos, {
+                albedoColor: ITEM_COLOURS[i],
+                metallic: 0.8,
+                roughness: 0.1
+            });
+        }
+
         //hide keys
         for (let i = 0; i < 6; i++) {
             this.PortalKeys[i].SetState(false);
         }
 
-        //teleport player to start
-        movePlayerTo({ newRelativePosition: Vector3.create(0, 0, -5), cameraTarget: Vector3.create(0, 1.5, 8) });
-
         if(MazeGameManager.IsDebugging) console.log("Maze Game Manager: game scene reset!");
     }
 
     /** starts a new game, teleporting the player to the start location */
+    public CallbackStartGame() { MazeGameManager.Instance.StartGame(); }
     public StartGame()
     {
         if(MazeGameManager.IsDebugging) console.log("Maze Game Manager: new game starting...");
+
+        //hide menu obj
+        MazeGameMenu.Instance.SetEntityState(false);
+        MazeGameMenu.Instance.SetMenuState(false);
 
         //generate maze alternatives
         this.mazeMaps = [];
@@ -295,7 +293,7 @@ export class MazeGameManager
             }
 
             //position places all keys at the start of map
-            //Transform.getMutable(this.PortalKeys[i].entity).position = Vector3.create(3, 1.5, -4+(1*i));
+            /*Transform.getMutable(this.PortalKeys[i].entity).position = Vector3.create(3, 1.5, -4+(1*i));*/
         }
 
         //reset timer data
@@ -303,7 +301,10 @@ export class MazeGameManager
         //start game processing
         this.gameState = 1;
         //play start sound
-        this.PortalObject.PlaySound(0);
+        AudioManager.Instance.PlaySound(AUDIO_SOUNDS.GAME_START);
+
+        //teleport player to start
+        movePlayerTo({ newRelativePosition: Vector3.create(0, 0, -5), cameraTarget: Vector3.create(0, 1.5, 8) });
 
         if(MazeGameManager.IsDebugging) console.log("Maze Game Manager: started new game!");
     }
@@ -312,11 +313,20 @@ export class MazeGameManager
     public EndGame()
     {
         if(MazeGameManager.IsDebugging) console.log("Maze Game Manager: game over, ended on maze map="+this.mazeAlternative);
+        
+        //show menu obj
+        MazeGameMenu.Instance.SetEntityState(true);
+        MazeGameMenu.Instance.SetMenuState(true);
+        //display exit chat
+        MazeGameMenu.Instance.SetChatChain(1);
+        
         //update state, game over
         this.gameState = 2;
         //play end sound
+        AudioManager.Instance.PlaySound(AUDIO_SOUNDS.GAME_END);
+
+        //update portal
         this.PortalObject.SetState(2);
-        this.PortalObject.PlaySound(1);
 
         //process every tile object in the maze
         for (let x = 0; x < this.mazeWidth; x++) {
@@ -324,6 +334,9 @@ export class MazeGameManager
                 this.MazeTileObjects[x][y].SetState(false);
             }
         }
+
+        //teleport player to start
+        movePlayerTo({ newRelativePosition: Vector3.create(0, 0, -5), cameraTarget: Vector3.create(0, 1.5, 8) });
     }
 
     /** maze alteration processing */
@@ -340,6 +353,8 @@ export class MazeGameManager
     {
         //roll over inbound value
         if(index > this.mazeAlternatives-1) index = 0;
+        //play sound
+        AudioManager.Instance.PlaySound(AUDIO_SOUNDS.STAGE_CHANGED);
 
         if(MazeGameManager.IsDebugging) console.log("Maze Game Manager: iterating to next maze map old="+this.mazeAlternative+", new="+index);
         //process every tile object in the maze
@@ -362,9 +377,6 @@ export class MazeGameManager
         }
         log += "\nSize X="+this.mazeWidth+", Y="+this.mazeHeight;
         console.log(log);*/
-
-        //place maze swap sound
-        AudioManager.Instance.PlaySound(0);
     }
 
     /** key processing */
@@ -400,7 +412,7 @@ export class MazeGameManager
         //Transform.getMutable(key.entity).position = Vector3.Zero();
         Transform.getMutable(key.entity).scale = Vector3.Zero();
         //place sound
-        key.PlaySound(0);
+        AudioManager.Instance.PlaySound(AUDIO_SOUNDS.KEY_PICKUP);
     }
 
     /** lock processing */
@@ -413,13 +425,13 @@ export class MazeGameManager
         //fill lock
         lock.IsFilled = true;
 
-        //position key
-        const key:MazePortalKey = this.PortalKeys[lock.Index] 
-        Transform.getMutable(key.entity).parent = lock.entityPos;
-        Transform.getMutable(key.entity).position = Vector3.create(0,1,0);
-        Transform.getMutable(key.entity).scale = Vector3.One();
+        //lock material to emission
+        Material.setPbrMaterial(lock.entityPos, {
+            emissiveColor: ITEM_COLOURS[lock.Index],
+            emissiveIntensity: 2
+        });
         //place sound
-        key.PlaySound(1);
+        AudioManager.Instance.PlaySound(AUDIO_SOUNDS.KEY_SLOTTED);
 
         //process win condition
         for (let i = 0; i < 6; i++) {

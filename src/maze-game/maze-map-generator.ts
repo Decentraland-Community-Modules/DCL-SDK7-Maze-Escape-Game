@@ -5,7 +5,6 @@ import Dictionary, { List } from "../utilities/collections";
 //woulda added in some run len checks but works atm so meh
 export namespace MazeGenerator
 {
-    //
     var found:boolean = false;
     //maze size factor
     var MazeSizeX:number = 0;
@@ -38,7 +37,7 @@ export namespace MazeGenerator
             //console.log("processing tile x="+curPos[0]+", y="+curPos[1])
             
             //pick a random direction and begin processing
-            var found = false;
+            found = false;
             var direction:number = getRandomNumber(0, 3);
             for (let i = 0; i < 4; i++) {
                 //roll over for direction

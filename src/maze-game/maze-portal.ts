@@ -8,18 +8,11 @@ export class MazePortal
     entity:Entity;
     displayEntity:Entity;
     displayText:Entity;
-    soundEntities:Entity[];
-
-    private static audioStrings:string[] = [
-        "audio/sfx_stage_change.wav",
-        "audio/sfx_victory.wav",
-        "audio/sfx_stage_change.wav"
-    ];
 
     private static stateStrings:string[] = [
         "THE PORTAL CALLS",//initialization
         "FIND THE KEYS",//active
-        "YOU HAVE ESCAPED"//victory
+        "INTERACT TO ESCAPE"//victory
     ];
 
     //callbacks
@@ -84,40 +77,15 @@ export class MazePortal
             outlineColor:{ r: 0, g: 0, b: 0 },
         });
         Billboard.create(this.displayText);
-
-        //create sound entities
-        this.soundEntities = []
-        for (let i = 0; i < MazePortal.audioStrings.length; i++) {
-            //entity
-            const soundEntity = engine.addEntity();
-            Transform.create(soundEntity,
-            ({
-                parent: this.entity,
-                position: Vector3.create(0,0,0),
-                scale: Vector3.create(1,1,1),
-                rotation: Quaternion.fromEulerDegrees(0, 0, 0)
-            }));
-            //audio source
-            AudioSource.create(soundEntity, {
-                audioClipUrl: MazePortal.audioStrings[i],
-                loop: false,
-                playing: false
-            });
-            //add to collection
-            this.soundEntities.push(soundEntity);
-        }
     }
 
     public SetState(state:number)
     {
         this.state = state;
         TextShape.getMutable(this.displayText).text = MazePortal.stateStrings[this.state];
-    }
 
-    public PlaySound(index:number)
-    {
-        //reset the place state to play from start
-        AudioSource.getMutable(this.soundEntities[index]).playing = false;
-        AudioSource.getMutable(this.soundEntities[index]).playing = true;
+        //hide portal if game is prep-ing/player is in chat phase
+        if(this.state == 1) Transform.getMutable(this.entity).scale = Vector3.create(2,2,2);
+        else Transform.getMutable(this.entity).scale = Vector3.Zero();
     }
 }
